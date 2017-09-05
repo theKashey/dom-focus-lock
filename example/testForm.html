@@ -1,0 +1,80 @@
+<html>
+<head>
+    <title>Focus Lock demo</title>
+    <script src="../umd/index.js"></script>
+</head>
+<body>
+<section>
+    Focus lock demo:
+    <div>
+        <a href="#">first link</a>, <a href="#">second link</a>.<br/>
+        <button tabindex="1">Button with tabindex</button>
+        (first tabbable element)
+
+        <div id="lock">
+            Lock content
+            <a href="#">first link</a>, <a href="#">second link</a>.<br/>
+            <button tabindex="1">Button with tabindex</button>
+            (second tabbable element)
+            <a href="#">third link</a>, <a href="#">last link</a>.<br/>
+
+            <button onClick="triggerLock()">TRIGGER LOCK!</button>
+        </div>
+
+        <input placeholder="inputOutside">
+    </div>
+</section>
+<style>
+    html {
+        line-height: 2em;
+        font-size: 16px;
+    }
+
+    section {
+        width: 5s00px;
+        margin: auto;
+        margin-top: 60px;
+    }
+
+    div {
+        padding: 32px;
+    }
+
+    #lock {
+        border: 2px solid green;
+        background-color: #EFE;
+    }
+
+    #lock.locked {
+        border: 2px solid red;
+        background-color: #FEE;
+    }
+</style>
+<script>
+  function createLock() {
+    var locked = false;
+    var lock = document.getElementById('lock');
+
+    function setStyle() {
+      lock.classList[locked ? 'add' : 'remove']('locked');
+    }
+
+    function triggerLock() {
+      locked = !locked;
+      if (locked) {
+        focusLock.on(lock);
+      } else {
+        focusLock.off(lock);
+      }
+      setStyle();
+    }
+
+    setStyle();
+    return triggerLock;
+  };
+
+  var triggerLock=createLock();
+</script>
+
+</body>
+</html>

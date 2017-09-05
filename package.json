@@ -1,0 +1,55 @@
+{
+  "name": "dom-focus-lock",
+  "version": "1.0.0",
+  "description": "It is a trap! (for a focus)",
+  "main": "dist/index.js",
+  "unpkg": "umd/index.js",
+  "scripts": {
+    "build": "babel src -d dist",
+    "umd": "browserify dist/index.js --standalone focusLock -o umd/index.js",
+    "prepublish": "npm run build && npm run umd",
+    "lint": "eslint src tests",
+    "lint:fix": "eslint src tests --fix"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/theKashey/vue-focus-lock.git"
+  },
+  "files": [
+    "src",
+    "dist",
+    "umd"
+  ],
+  "keywords": [
+    "vanilla",
+    "dom",
+    "modals",
+    "focus",
+    "lock",
+    "trap",
+    "tabbable"
+  ],
+  "author": "theKashey <thekashey@gmail.com>",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/theKashey/dom-focus-lock/issues"
+  },
+  "homepage": "https://github.com/theKashey/dom-focus-lock#readme",
+  "devDependencies": {
+    "babel-core": "^6.24.0",
+    "babel-eslint": "7.2.3",
+    "babel-loader": "^6.4.1",
+    "babel-plugin-transform-runtime": "^6.23.0",
+    "babel-preset-env": "1.6.0",
+    "babel-preset-es2015": "^6.24.0",
+    "babel-preset-stage-2": "^6.22.0",
+    "babel-runtime": "^6.23.0",
+    "browserify": "14.4.0",
+    "eslint": "^4.6.0",
+    "eslint-plugin-vue": "^3.12.0",
+    "style-loader": "^0.15.0"
+  },
+  "dependencies": {
+    "focus-lock": "0.0.2-2"
+  }
+}
