@@ -70,6 +70,7 @@ var _typeof = typeof Symbol === "function" && typeof Symbol.iterator === "symbol
   };
 
   // export
+  // eslint-disable-next-line no-undef
   if (typeof define === 'function' && define.amd) {
     define(['focusLock'], function () {
       return focusLock;
