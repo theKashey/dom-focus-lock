@@ -50,6 +50,7 @@
     "style-loader": "^0.15.0"
   },
   "dependencies": {
-    "focus-lock": "^0.0.3"
+    "babel-cli": "6",
+    "focus-lock": "^0.5.3"
   }
 }
