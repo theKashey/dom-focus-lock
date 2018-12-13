@@ -1,24 +1,33 @@
 (function(f){if(typeof exports==="object"&&typeof module!=="undefined"){module.exports=f()}else if(typeof define==="function"&&define.amd){define([],f)}else{var g;if(typeof window!=="undefined"){g=window}else if(typeof global!=="undefined"){g=global}else if(typeof self!=="undefined"){g=self}else{g=this}g.focusLock = f()}})(function(){var define,module,exports;return (function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);var f=new Error("Cannot find module '"+o+"'");throw f.code="MODULE_NOT_FOUND",f}var l=n[o]={exports:{}};t[o][0].call(l.exports,function(e){var n=t[o][1][e];return s(n?n:e)},l,l.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s})({1:[function(require,module,exports){
 'use strict';
 
-var _typeof = typeof Symbol === "function" && typeof Symbol.iterator === "symbol" ? function (obj) { return typeof obj; } : function (obj) { return obj && typeof Symbol === "function" && obj.constructor === Symbol && obj !== Symbol.prototype ? "symbol" : typeof obj; };
-
 (function () {
   var _require = require('focus-lock'),
       moveFocusInside = _require.default,
-      focusInside = _require.focusInside;
+      focusInside = _require.focusInside,
+      focusIsHidden = _require.focusIsHidden;
 
   var lastActiveTrap = 0;
   var lastActiveFocus = null;
+
+  var focusOnBody = function focusOnBody() {
+    return document && document.activeElement === document.body;
+  };
+
+  var isFreeFocus = function isFreeFocus() {
+    return focusOnBody() || focusIsHidden();
+  };
 
   var activateTrap = function activateTrap() {
     var result = false;
     if (lastActiveTrap) {
       var observed = lastActiveTrap;
-      if (observed && !focusInside(observed)) {
-        result = moveFocusInside(observed, lastActiveFocus);
+      if (!isFreeFocus()) {
+        if (observed && !focusInside(observed)) {
+          result = moveFocusInside(observed, lastActiveFocus);
+        }
+        lastActiveFocus = document.activeElement;
       }
-      lastActiveFocus = document.activeElement;
     }
     return result;
   };
@@ -56,6 +65,7 @@ var _typeof = typeof Symbol === "function" && typeof Symbol.iterator === "symbol
 
   var focusLock = {
     on: function on(domNode) {
+      console.log('just tst');
       if (instances.length === 0) {
         attachHandler();
       }
@@ -75,17 +85,7 @@ var _typeof = typeof Symbol === "function" && typeof Symbol.iterator === "symbol
     }
   };
 
-  // export
-  // eslint-disable-next-line no-undef
-  if (typeof define === 'function' && define.amd) {
-    define(['focusLock'], function () {
-      return focusLock;
-    });
-  } else if ((typeof module === 'undefined' ? 'undefined' : _typeof(module)) === 'object' && module.exports) {
-    module.exports = focusLock;
-  } else if (window !== undefined) {
-    window.focusLock = focusLock;
-  }
+  module.exports = focusLock;
 })();
 },{"focus-lock":6}],2:[function(require,module,exports){
 'use strict';

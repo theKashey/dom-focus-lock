@@ -1,17 +1,27 @@
 (function () {
-  const {default: moveFocusInside, focusInside} = require('focus-lock');
+  const {default: moveFocusInside, focusInside, focusIsHidden} = require('focus-lock');
 
   let lastActiveTrap = 0;
   let lastActiveFocus = null;
+
+
+  const focusOnBody = () => (
+    document && document.activeElement === document.body
+  );
+
+  const isFreeFocus = () => focusOnBody() || focusIsHidden();
+
 
   const activateTrap = () => {
     let result = false;
     if (lastActiveTrap) {
       const observed = lastActiveTrap;
-      if (observed && !focusInside(observed)) {
-        result = moveFocusInside(observed, lastActiveFocus);
+      if(!isFreeFocus()) {
+        if (observed && !focusInside(observed)) {
+          result = moveFocusInside(observed, lastActiveFocus);
+        }
+        lastActiveFocus = document.activeElement;
       }
-      lastActiveFocus = document.activeElement;
     }
     return result;
   };
@@ -67,15 +77,5 @@
     }
   };
 
-  // export
-  // eslint-disable-next-line no-undef
-  if (typeof define === 'function' && define.amd) {
-    define(['focusLock'], () => focusLock);
-  }
-  else if (typeof module === 'object' && module.exports) {
-    module.exports = focusLock;
-  }
-  else if (window !== undefined) {
-    window.focusLock = focusLock;
-  }
+  module.exports = focusLock;
 })();
