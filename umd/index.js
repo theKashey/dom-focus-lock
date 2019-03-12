@@ -592,15 +592,19 @@
 
   var activateTrap = function activateTrap() {
     var result = false;
+
     if (lastActiveTrap) {
       var observed = lastActiveTrap;
+
       if (!isFreeFocus()) {
         if (observed && !focusInside(observed)) {
           result = setFocus(observed, lastActiveFocus);
         }
+
         lastActiveFocus = document.activeElement;
       }
     }
+
     return result;
   };
 
@@ -612,6 +616,7 @@
 
   var handleStateChangeOnClient = function handleStateChangeOnClient(trap) {
     lastActiveTrap = trap;
+
     if (trap) {
       activateTrap();
     }
@@ -624,6 +629,7 @@
       event && event.preventDefault();
       return true;
     }
+
     return false;
   };
 
@@ -640,6 +646,7 @@
       if (instances.length === 0) {
         attachHandler();
       }
+
       if (instances.indexOf(domNode) < 0) {
         instances.push(domNode);
         emitChange();
@@ -650,6 +657,7 @@
         return node !== domNode;
       });
       emitChange();
+
       if (instances.length === 0) {
         detachHandler();
       }
