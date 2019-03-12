@@ -18,6 +18,10 @@
     })[0];
   };
 
+  var asArray = function asArray(a) {
+    return Array.isArray(a) ? a : [a];
+  };
+
   var tabSort = function tabSort(a, b) {
     var tabDiff = a.tabIndex - b.tabIndex;
     var indexDiff = a.index - b.index;
@@ -30,12 +34,12 @@
     return tabDiff || indexDiff;
   };
 
-  var orderByTabIndex = function orderByTabIndex(nodes, filterNegative) {
+  var orderByTabIndex = function orderByTabIndex(nodes, filterNegative, keepGuards) {
     return toArray(nodes).map(function (node, index) {
       return {
         node: node,
         index: index,
-        tabIndex: node.tabIndex
+        tabIndex: keepGuards && node.tabIndex === -1 ? (node.dataset || {}).focusGuard ? 0 : -1 : node.tabIndex
       };
     }).filter(function (data) {
       return !filterNegative || data.tabIndex >= 0;
@@ -49,9 +53,18 @@
   var FOCUS_ALLOW = 'data-no-focus-lock';
   var FOCUS_AUTO = 'data-autofocus-inside';
 
-  var getFocusables = function getFocusables(parents) {
+  var queryTabbables = tabbables.join(',');
+  var queryGuardTabbables = queryTabbables + ', [data-focus-guard]';
+
+  var getFocusables = function getFocusables(parents, withGuards) {
     return parents.reduce(function (acc, parent) {
-      return acc.concat(toArray(parent.querySelectorAll(tabbables.join(','))));
+      return acc.concat(
+      // add all tabbables inside
+      toArray(parent.querySelectorAll(withGuards ? queryGuardTabbables : queryTabbables)),
+      // add if node is tabble itself
+      parent.parentNode ? toArray(parent.parentNode.querySelectorAll(tabbables.join(','))).filter(function (node) {
+        return node === parent;
+      }) : []);
     }, []);
   };
 
@@ -110,8 +123,8 @@
     });
   };
 
-  var getTabbableNodes = function getTabbableNodes(topNodes) {
-    return orderByTabIndex(filterFocusable(getFocusables(topNodes)), true);
+  var getTabbableNodes = function getTabbableNodes(topNodes, withGuards) {
+    return orderByTabIndex(filterFocusable(getFocusables(topNodes, withGuards)), true, withGuards);
   };
 
   var getAllTabbableNodes = function getAllTabbableNodes(topNodes) {
@@ -143,19 +156,27 @@
     return nodes[0];
   };
 
+  var _typeof = typeof Symbol === "function" && typeof Symbol.iterator === "symbol" ? function (obj) { return typeof obj; } : function (obj) { return obj && typeof Symbol === "function" && obj.constructor === Symbol && obj !== Symbol.prototype ? "symbol" : typeof obj; };
+
   var filterNested = function filterNested(nodes) {
     var l = nodes.length;
-    var i = void 0;
-    var j = void 0;
-    for (i = 0; i < l; i += 1) {
-      for (j = 0; j < l; j += 1) {
+    for (var i = 0; i < l; i += 1) {
+      var _loop = function _loop(j) {
         if (i !== j) {
           if (nodes[i].contains(nodes[j])) {
-            return filterNested(nodes.filter(function (x) {
-              return x !== nodes[j];
-            }));
+            return {
+              v: filterNested(nodes.filter(function (x) {
+                return x !== nodes[j];
+              }))
+            };
           }
         }
+      };
+
+      for (var j = 0; j < l; j += 1) {
+        var _ret = _loop(j);
+
+        if ((typeof _ret === 'undefined' ? 'undefined' : _typeof(_ret)) === "object") return _ret.v;
       }
     }
     return nodes;
@@ -166,11 +187,12 @@
   };
 
   var getAllAffectedNodes = function getAllAffectedNodes(node) {
-    var group = node.getAttribute(FOCUS_GROUP);
-    if (group) {
-      return filterNested(toArray(getTopParent(node).querySelectorAll('[' + FOCUS_GROUP + '="' + group + '"]:not([' + FOCUS_DISABLED + '="disabled"])')));
-    }
-    return [node];
+    var nodes = asArray(node);
+    return nodes.filter(Boolean).reduce(function (acc, currentNode) {
+      var group = currentNode.getAttribute(FOCUS_GROUP);
+      acc.push.apply(acc, group ? filterNested(toArray(getTopParent(currentNode).querySelectorAll('[' + FOCUS_GROUP + '="' + group + '"]:not([' + FOCUS_DISABLED + '="disabled"])'))) : [currentNode]);
+      return acc;
+    }, []);
   };
 
   var findAutoFocused = function findAutoFocused(autoFocusables) {
@@ -227,17 +249,23 @@
     return undefined;
   };
 
-  var getTopCommonParent = function getTopCommonParent(activeElement, entry, entries) {
-    var topCommon = entry;
-    entries.forEach(function (subEntry) {
-      var common = getCommonParent(activeElement, subEntry);
-      if (common) {
-        if (common.contains(topCommon)) {
-          topCommon = common;
-        } else {
-          topCommon = getCommonParent(common, topCommon);
+  var getTopCommonParent = function getTopCommonParent(baseActiveElement, leftEntry, rightEntries) {
+    var activeElements = asArray(baseActiveElement);
+    var leftEntries = asArray(leftEntry);
+    var activeElement = activeElements[0];
+    var topCommon = null;
+    leftEntries.filter(Boolean).forEach(function (entry) {
+      topCommon = getCommonParent(topCommon || entry, entry) || topCommon;
+      rightEntries.filter(Boolean).forEach(function (subEntry) {
+        var common = getCommonParent(activeElement, subEntry);
+        if (common) {
+          if (!topCommon || common.contains(topCommon)) {
+            topCommon = common;
+          } else {
+            topCommon = getCommonParent(common, topCommon);
+          }
         }
-      }
+      });
     });
     return topCommon;
   };
@@ -252,20 +280,29 @@
     return !(node.dataset && node.dataset.focusGuard);
   };
 
+  var reorderNodes = function reorderNodes(srcNodes, dstNodes) {
+    return srcNodes.map(function (dnode) {
+      return dstNodes.find(function (_ref) {
+        var node = _ref.node;
+        return dnode === node;
+      });
+    }).filter(Boolean);
+  };
+
   var getFocusMerge = function getFocusMerge(topNode, lastNode) {
     var activeElement = document && document.activeElement;
     var entries = getAllAffectedNodes(topNode).filter(notAGuard);
 
     var commonParent = getTopCommonParent(activeElement || topNode, topNode, entries);
 
-    var innerElements = getTabbableNodes(entries).filter(function (_ref) {
-      var node = _ref.node;
+    var innerElements = getTabbableNodes(entries).filter(function (_ref5) {
+      var node = _ref5.node;
       return notAGuard(node);
     });
 
     if (!innerElements[0]) {
-      innerElements = getAllTabbableNodes(entries).filter(function (_ref2) {
-        var node = _ref2.node;
+      innerElements = getAllTabbableNodes(entries).filter(function (_ref6) {
+        var node = _ref6.node;
         return notAGuard(node);
       });
       if (!innerElements[0]) {
@@ -273,13 +310,13 @@
       }
     }
 
-    var innerNodes = innerElements.map(function (_ref3) {
-      var node = _ref3.node;
+    var outerNodes = getTabbableNodes([commonParent]).map(function (_ref7) {
+      var node = _ref7.node;
       return node;
     });
-
-    var outerNodes = getTabbableNodes([commonParent]).map(function (_ref4) {
-      var node = _ref4.node;
+    var orderedInnerElements = reorderNodes(outerNodes, innerElements);
+    var innerNodes = orderedInnerElements.map(function (_ref8) {
+      var node = _ref8.node;
       return node;
     });
 
@@ -288,7 +325,7 @@
     if (newId === undefined) {
       return newId;
     }
-    return innerElements[newId];
+    return orderedInnerElements[newId];
   };
 
   var focusInFrame = function focusInFrame(frame) {
@@ -296,9 +333,7 @@
   };
 
   var focusInsideIframe = function focusInsideIframe(topNode) {
-    return getAllAffectedNodes(topNode).reduce(function (result, node) {
-      return result || !!arrayFind(toArray(node.querySelectorAll('iframe')), focusInFrame);
-    }, false);
+    return !!arrayFind(toArray(topNode.querySelectorAll('iframe')), focusInFrame);
   };
 
   var focusInside = function focusInside(topNode) {
@@ -308,7 +343,7 @@
       return false;
     }
     return getAllAffectedNodes(topNode).reduce(function (result, node) {
-      return result || node.contains(activeElement) || focusInsideIframe(topNode);
+      return result || node.contains(activeElement) || focusInsideIframe(node);
     }, false);
   };
 
@@ -316,232 +351,6 @@
     return document && toArray(document.querySelectorAll('[' + FOCUS_ALLOW + ']')).some(function (node) {
       return node.contains(document.activeElement);
     });
-  };
-
-  var global$1 = (typeof global !== "undefined" ? global :
-              typeof self !== "undefined" ? self :
-              typeof window !== "undefined" ? window : {});
-
-  // shim for using process in browser
-  // based off https://github.com/defunctzombie/node-process/blob/master/browser.js
-
-  function defaultSetTimout() {
-      throw new Error('setTimeout has not been defined');
-  }
-  function defaultClearTimeout () {
-      throw new Error('clearTimeout has not been defined');
-  }
-  var cachedSetTimeout = defaultSetTimout;
-  var cachedClearTimeout = defaultClearTimeout;
-  if (typeof global$1.setTimeout === 'function') {
-      cachedSetTimeout = setTimeout;
-  }
-  if (typeof global$1.clearTimeout === 'function') {
-      cachedClearTimeout = clearTimeout;
-  }
-
-  function runTimeout(fun) {
-      if (cachedSetTimeout === setTimeout) {
-          //normal enviroments in sane situations
-          return setTimeout(fun, 0);
-      }
-      // if setTimeout wasn't available but was latter defined
-      if ((cachedSetTimeout === defaultSetTimout || !cachedSetTimeout) && setTimeout) {
-          cachedSetTimeout = setTimeout;
-          return setTimeout(fun, 0);
-      }
-      try {
-          // when when somebody has screwed with setTimeout but no I.E. maddness
-          return cachedSetTimeout(fun, 0);
-      } catch(e){
-          try {
-              // When we are in I.E. but the script has been evaled so I.E. doesn't trust the global object when called normally
-              return cachedSetTimeout.call(null, fun, 0);
-          } catch(e){
-              // same as above but when it's a version of I.E. that must have the global object for 'this', hopfully our context correct otherwise it will throw a global error
-              return cachedSetTimeout.call(this, fun, 0);
-          }
-      }
-
-
-  }
-  function runClearTimeout(marker) {
-      if (cachedClearTimeout === clearTimeout) {
-          //normal enviroments in sane situations
-          return clearTimeout(marker);
-      }
-      // if clearTimeout wasn't available but was latter defined
-      if ((cachedClearTimeout === defaultClearTimeout || !cachedClearTimeout) && clearTimeout) {
-          cachedClearTimeout = clearTimeout;
-          return clearTimeout(marker);
-      }
-      try {
-          // when when somebody has screwed with setTimeout but no I.E. maddness
-          return cachedClearTimeout(marker);
-      } catch (e){
-          try {
-              // When we are in I.E. but the script has been evaled so I.E. doesn't  trust the global object when called normally
-              return cachedClearTimeout.call(null, marker);
-          } catch (e){
-              // same as above but when it's a version of I.E. that must have the global object for 'this', hopfully our context correct otherwise it will throw a global error.
-              // Some versions of I.E. have different rules for clearTimeout vs setTimeout
-              return cachedClearTimeout.call(this, marker);
-          }
-      }
-
-
-
-  }
-  var queue = [];
-  var draining = false;
-  var currentQueue;
-  var queueIndex = -1;
-
-  function cleanUpNextTick() {
-      if (!draining || !currentQueue) {
-          return;
-      }
-      draining = false;
-      if (currentQueue.length) {
-          queue = currentQueue.concat(queue);
-      } else {
-          queueIndex = -1;
-      }
-      if (queue.length) {
-          drainQueue();
-      }
-  }
-
-  function drainQueue() {
-      if (draining) {
-          return;
-      }
-      var timeout = runTimeout(cleanUpNextTick);
-      draining = true;
-
-      var len = queue.length;
-      while(len) {
-          currentQueue = queue;
-          queue = [];
-          while (++queueIndex < len) {
-              if (currentQueue) {
-                  currentQueue[queueIndex].run();
-              }
-          }
-          queueIndex = -1;
-          len = queue.length;
-      }
-      currentQueue = null;
-      draining = false;
-      runClearTimeout(timeout);
-  }
-  function nextTick(fun) {
-      var args = new Array(arguments.length - 1);
-      if (arguments.length > 1) {
-          for (var i = 1; i < arguments.length; i++) {
-              args[i - 1] = arguments[i];
-          }
-      }
-      queue.push(new Item(fun, args));
-      if (queue.length === 1 && !draining) {
-          runTimeout(drainQueue);
-      }
-  }
-  // v8 likes predictible objects
-  function Item(fun, array) {
-      this.fun = fun;
-      this.array = array;
-  }
-  Item.prototype.run = function () {
-      this.fun.apply(null, this.array);
-  };
-  var title = 'browser';
-  var platform = 'browser';
-  var browser = true;
-  var env = {};
-  var argv = [];
-  var version = ''; // empty string to avoid regexp issues
-  var versions = {};
-  var release = {};
-  var config = {};
-
-  function noop() {}
-
-  var on = noop;
-  var addListener = noop;
-  var once = noop;
-  var off = noop;
-  var removeListener = noop;
-  var removeAllListeners = noop;
-  var emit = noop;
-
-  function binding(name) {
-      throw new Error('process.binding is not supported');
-  }
-
-  function cwd () { return '/' }
-  function chdir (dir) {
-      throw new Error('process.chdir is not supported');
-  }function umask() { return 0; }
-
-  // from https://github.com/kumavis/browser-process-hrtime/blob/master/index.js
-  var performance = global$1.performance || {};
-  var performanceNow =
-    performance.now        ||
-    performance.mozNow     ||
-    performance.msNow      ||
-    performance.oNow       ||
-    performance.webkitNow  ||
-    function(){ return (new Date()).getTime() };
-
-  // generate timestamp or delta
-  // see http://nodejs.org/api/process.html#process_process_hrtime
-  function hrtime(previousTimestamp){
-    var clocktime = performanceNow.call(performance)*1e-3;
-    var seconds = Math.floor(clocktime);
-    var nanoseconds = Math.floor((clocktime%1)*1e9);
-    if (previousTimestamp) {
-      seconds = seconds - previousTimestamp[0];
-      nanoseconds = nanoseconds - previousTimestamp[1];
-      if (nanoseconds<0) {
-        seconds--;
-        nanoseconds += 1e9;
-      }
-    }
-    return [seconds,nanoseconds]
-  }
-
-  var startTime = new Date();
-  function uptime() {
-    var currentTime = new Date();
-    var dif = currentTime - startTime;
-    return dif / 1000;
-  }
-
-  var process = {
-    nextTick: nextTick,
-    title: title,
-    browser: browser,
-    env: env,
-    argv: argv,
-    version: version,
-    versions: versions,
-    on: on,
-    addListener: addListener,
-    once: once,
-    off: off,
-    removeListener: removeListener,
-    removeAllListeners: removeAllListeners,
-    emit: emit,
-    binding: binding,
-    cwd: cwd,
-    chdir: chdir,
-    umask: umask,
-    hrtime: hrtime,
-    platform: platform,
-    release: release,
-    config: config,
-    uptime: uptime
   };
 
   var focusOn = function focusOn(target) {
@@ -563,14 +372,12 @@
 
     if (focusable) {
       if (guardCount > 2) {
-        if (process.env.NODE_ENV !== 'production') {
-          // eslint-disable-next-line no-console
-          console.error('FocusLock: focus-fighting detected. Only one focus management system could be active. ' + 'See https://github.com/theKashey/focus-lock/#focus-fighting');
-          lockDisabled = true;
-          setTimeout(function () {
-            lockDisabled = false;
-          }, 1);
-        }
+        // eslint-disable-next-line no-console
+        console.error('FocusLock: focus-fighting detected. Only one focus management system could be active. ' + 'See https://github.com/theKashey/focus-lock/#focus-fighting');
+        lockDisabled = true;
+        setTimeout(function () {
+          lockDisabled = false;
+        }, 1);
         return;
       }
       guardCount++;
