@@ -85,7 +85,7 @@
   };
 
   var isVisible = function isVisible(node) {
-    return !node || node === document || !isElementHidden(window.getComputedStyle(node, null)) && isVisible(node.parentNode);
+    return !node || node === document || node.nodeType === Node.DOCUMENT_NODE || !isElementHidden(window.getComputedStyle(node, null)) && isVisible(node.parentNode);
   };
 
   var notHiddenInput = function notHiddenInput(node) {
@@ -156,6 +156,15 @@
     return nodes[0];
   };
 
+  var pickFocusable = function pickFocusable(nodes, index) {
+    if (nodes.length > 1) {
+      if (isRadio(nodes[index]) && nodes[index].name) {
+        return nodes.indexOf(findSelectedRadio(nodes[index], nodes));
+      }
+    }
+    return index;
+  };
+
   var _typeof = typeof Symbol === "function" && typeof Symbol.iterator === "symbol" ? function (obj) { return typeof obj; } : function (obj) { return obj && typeof Symbol === "function" && obj.constructor === Symbol && obj !== Symbol.prototype ? "symbol" : typeof obj; };
 
   var filterNested = function filterNested(nodes) {
@@ -201,10 +210,18 @@
     };
   };
 
+  var isGuard = function isGuard(node) {
+    return node && node.dataset && node.dataset.focusGuard;
+  };
+  var notAGuard = function notAGuard(node) {
+    return !isGuard(node);
+  };
+
   var newFocus = function newFocus(innerNodes, outerNodes, activeElement, lastNode, autoFocused) {
     var cnt = innerNodes.length;
     var firstFocus = innerNodes[0];
     var lastFocus = innerNodes[cnt - 1];
+    var isOnGuard = isGuard(activeElement);
 
     // focus is inside
     if (innerNodes.indexOf(activeElement) >= 0) {
@@ -218,25 +235,36 @@
     var firstNodeIndex = outerNodes.indexOf(firstFocus);
     var lastNodeIndex = outerNodes.indexOf(lastFocus);
 
+    var returnFirstNode = pickFocusable(innerNodes, 0);
+    var returnLastNode = pickFocusable(innerNodes, cnt - 1);
+
     // new focus
     if (activeIndex === -1 || lastNodeInside === -1) {
-      return innerNodes.indexOf(autoFocused.length ? pickFirstFocus(autoFocused) : pickFirstFocus(innerNodes));
+      return innerNodes.indexOf(autoFocused && autoFocused.length ? pickFirstFocus(autoFocused) : pickFirstFocus(innerNodes));
     }
     // old focus
     if (!indexDiff && lastNodeInside >= 0) {
       return lastNodeInside;
     }
-    // jump out
+    // first element
+    if (activeIndex <= firstNodeIndex && isOnGuard && Math.abs(indexDiff) > 1) {
+      return returnLastNode;
+    }
+    // last element
+    if (activeIndex >= firstNodeIndex && isOnGuard && Math.abs(indexDiff) > 1) {
+      return returnFirstNode;
+    }
+    // jump out, but not on the guard
     if (indexDiff && Math.abs(indexDiff) > 1) {
       return lastNodeInside;
     }
     // focus above lock
     if (activeIndex <= firstNodeIndex) {
-      return cnt - 1;
+      return returnLastNode;
     }
     // focus below lock
     if (activeIndex > lastNodeIndex) {
-      return 0;
+      return returnFirstNode;
     }
     // index is inside tab order, but outside Lock
     if (indexDiff) {
@@ -276,16 +304,15 @@
     }, []);
   };
 
-  var notAGuard = function notAGuard(node) {
-    return !(node.dataset && node.dataset.focusGuard);
-  };
-
   var reorderNodes = function reorderNodes(srcNodes, dstNodes) {
-    return srcNodes.map(function (dnode) {
-      return dstNodes.find(function (_ref) {
-        var node = _ref.node;
-        return dnode === node;
-      });
+    var remap = new Map();
+    // no Set(dstNodes) for IE11 :(
+    dstNodes.forEach(function (entity) {
+      return remap.set(entity.node, entity);
+    });
+    // remap to dstNodes
+    return srcNodes.map(function (node) {
+      return remap.get(node);
     }).filter(Boolean);
   };
 
@@ -295,14 +322,14 @@
 
     var commonParent = getTopCommonParent(activeElement || topNode, topNode, entries);
 
-    var innerElements = getTabbableNodes(entries).filter(function (_ref5) {
-      var node = _ref5.node;
+    var innerElements = getTabbableNodes(entries).filter(function (_ref4) {
+      var node = _ref4.node;
       return notAGuard(node);
     });
 
     if (!innerElements[0]) {
-      innerElements = getAllTabbableNodes(entries).filter(function (_ref6) {
-        var node = _ref6.node;
+      innerElements = getAllTabbableNodes(entries).filter(function (_ref5) {
+        var node = _ref5.node;
         return notAGuard(node);
       });
       if (!innerElements[0]) {
@@ -310,13 +337,13 @@
       }
     }
 
-    var outerNodes = getTabbableNodes([commonParent]).map(function (_ref7) {
-      var node = _ref7.node;
+    var outerNodes = getTabbableNodes([commonParent]).map(function (_ref6) {
+      var node = _ref6.node;
       return node;
     });
     var orderedInnerElements = reorderNodes(outerNodes, innerElements);
-    var innerNodes = orderedInnerElements.map(function (_ref8) {
-      var node = _ref8.node;
+    var innerNodes = orderedInnerElements.map(function (_ref7) {
+      var node = _ref7.node;
       return node;
     });
 
