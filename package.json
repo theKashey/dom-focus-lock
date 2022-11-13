@@ -20,7 +20,7 @@
     "umd"
   ],
   "dependencies": {
-    "focus-lock": "^0.6.8"
+    "focus-lock": "^0.11.3"
   },
   "devDependencies": {
     "@babel/core": "^7.3.4",

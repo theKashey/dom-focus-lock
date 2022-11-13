@@ -1526,10 +1526,12 @@ flat-cache@^1.2.1:
     graceful-fs "^4.1.2"
     write "^0.2.1"
 
-focus-lock@^0.6.8:
-  version "0.6.8"
-  resolved "https://registry.yarnpkg.com/focus-lock/-/focus-lock-0.6.8.tgz#61985fadfa92f02f2ee1d90bc738efaf7f3c9f46"
-  integrity sha512-vkHTluRCoq9FcsrldC0ulQHiyBYgVJB2CX53I8r0nTC6KnEij7Of0jpBspjt3/CuNb6fyoj3aOh9J2HgQUM0og==
+focus-lock@^0.11.3:
+  version "0.11.3"
+  resolved "https://packages.atlassian.com/api/npm/npm-remote/focus-lock/-/focus-lock-0.11.3.tgz#c094e8f109d780f56038abdeec79328fd56b627f"
+  integrity sha512-4n0pYcPTa/uI7Q66BZna61nRT7lDhnuJ9PJr6wiDjx4uStg491ks41y7uOG+s0umaaa+hulNKSldU9aTg9/yVg==
+  dependencies:
+    tslib "^2.0.3"
 
 for-in@^1.0.2:
   version "1.0.2"
@@ -3389,6 +3391,11 @@ tryit@^1.0.1:
   version "1.0.3"
   resolved "https://registry.yarnpkg.com/tryit/-/tryit-1.0.3.tgz#393be730a9446fd1ead6da59a014308f36c289cb"
   integrity sha1-OTvnMKlEb9Hq1tpZoBQwjzbCics=
+
+tslib@^2.0.3:
+  version "2.4.1"
+  resolved "https://packages.atlassian.com/api/npm/npm-remote/tslib/-/tslib-2.4.1.tgz#0d0bfbaac2880b91e22df0768e55be9753a5b17e"
+  integrity sha512-tGyy4dAjRIEwI7BzsB0lynWgOpfqjUdq91XXAlIWD2OwKBH7oCl/GZG/HT4BOHrTlPMOASlMQ7veyTqpmRcrNA==
 
 type-check@~0.3.2:
   version "0.3.2"
